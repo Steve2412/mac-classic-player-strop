@@ -5,5 +5,10 @@
     <!-- libmpv（Homebrew）は別の署名なので、Hardened Runtime のライブラリ検証を外して読み込めるようにする -->
     <key>com.apple.security.cs.disable-library-validation</key>
     <true/>
+    <!-- 念のため: libmpv が使う LuaJIT などの実行時コード生成を許可する（無いと Hardened Runtime で強制終了する） -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
 </dict>
 </plist>

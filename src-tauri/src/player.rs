@@ -32,6 +32,19 @@ const OBSERVED: &[&str] = &[
     "seeking",
 ];
 
+/// mpv の内蔵スクリプトを止めるオプション（バージョンによって存在しないものもある）
+const BUILTIN_SCRIPTS_OFF: &[(&str, &str)] = &[
+    ("load-scripts", "no"),
+    ("load-stats-overlay", "no"),
+    ("load-osd-console", "no"),
+    ("load-console", "no"),
+    ("load-auto-profiles", "no"),
+    ("load-select", "no"),
+    ("load-positioning", "no"),
+    ("load-commands", "no"),
+    ("load-context-menu", "no"),
+];
+
 /// フロントエンドから変更してよいプロパティ
 const SETTABLE: &[&str] = &[
     "pause",
@@ -116,27 +129,33 @@ fn create_player() -> Result<Arc<Player>, String> {
         "null"
     };
     let langs = preferred_languages();
-    let player = Player::new(&[
-        ("vo", vo),
-        ("hwdec", "auto-safe"),
-        ("idle", "yes"),
-        ("keep-open", "yes"),
-        ("pause", "yes"),
-        ("config", "no"),
-        ("terminal", "no"),
-        ("input-default-bindings", "no"),
-        ("input-vo-keyboard", "no"),
-        ("osc", "no"),
-        ("osd-level", "0"),
-        ("ytdl", "no"),
-        // 音楽ファイルのジャケット画像は映像として扱わない（UIで表示する）
-        ("audio-display", "no"),
-        // 同じフォルダの同名の字幕ファイルも読み込む
-        ("sub-auto", "fuzzy"),
-        ("alang", &langs),
-        ("slang", &langs),
-        ("volume-max", "100"),
-    ])
+    let player = Player::with_optional(
+        &[
+            ("vo", vo),
+            ("hwdec", "auto-safe"),
+            ("idle", "yes"),
+            ("keep-open", "yes"),
+            ("pause", "yes"),
+            ("config", "no"),
+            ("terminal", "no"),
+            ("input-default-bindings", "no"),
+            ("input-vo-keyboard", "no"),
+            ("osc", "no"),
+            ("osd-level", "0"),
+            ("ytdl", "no"),
+            // 音楽ファイルのジャケット画像は映像として扱わない（UIで表示する）
+            ("audio-display", "no"),
+            // 同じフォルダの同名の字幕ファイルも読み込む
+            ("sub-auto", "fuzzy"),
+            ("alang", &langs),
+            ("slang", &langs),
+            ("volume-max", "100"),
+        ],
+        // mpv に内蔵された Lua スクリプト（統計表示・コンソールなど）は使わないので読み込まない。
+        // Lua(LuaJIT) は実行時にコードを生成するため、署名済みアプリ（Hardened Runtime）では
+        // 強制終了の原因になる。名前は mpv のバージョンで増減するので、無いものは無視する
+        BUILTIN_SCRIPTS_OFF,
+    )
     .map_err(|e| {
         if e.contains("libmpv not found") {
             format!("{ERR_MPV_MISSING}: {e}")
@@ -333,5 +352,69 @@ mod tests {
     fn languages_include_english_as_fallback() {
         let langs = preferred_languages();
         assert!(langs.contains("en"), "{langs}");
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod script_tests {
+    use super::*;
+
+    /// 今のプロセスのスレッド名（mpv のスクリプトは "mpv/stats" のような名前のスレッドで動く）
+    fn thread_names() -> Vec<String> {
+        std::fs::read_dir("/proc/self/task")
+            .map(|dir| {
+                dir.flatten()
+                    .filter_map(|t| std::fs::read_to_string(t.path().join("comm")).ok())
+                    .map(|s| s.trim().to_string())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    #[test]
+    fn builtin_lua_scripts_are_not_started() {
+        if crate::mpv::ffi::api().is_err() {
+            return;
+        }
+        let base = [
+            ("vo", "null"),
+            ("ao", "null"),
+            ("config", "no"),
+            ("terminal", "no"),
+        ];
+        let script_threads = || {
+            std::thread::sleep(Duration::from_millis(500));
+            thread_names()
+                .into_iter()
+                .filter(|n| {
+                    [
+                        "stats",
+                        "console",
+                        "auto_profiles",
+                        "select",
+                        "commands",
+                        "positioning",
+                    ]
+                    .iter()
+                    .any(|s| n.contains(s))
+                })
+                .collect::<Vec<_>>()
+        };
+
+        // 比較のため: 何も止めないと内蔵スクリプトのスレッドが立つ
+        let with_scripts = Player::new(&base).unwrap();
+        let before = script_threads();
+        drop(with_scripts);
+        std::thread::sleep(Duration::from_millis(300));
+
+        let without = Player::with_optional(&base, BUILTIN_SCRIPTS_OFF).unwrap();
+        let after = script_threads();
+        drop(without);
+
+        assert!(
+            !before.is_empty(),
+            "expected builtin script threads by default"
+        );
+        assert!(after.is_empty(), "scripts still running: {after:?}");
     }
 }

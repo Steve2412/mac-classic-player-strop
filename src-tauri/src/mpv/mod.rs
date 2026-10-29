@@ -63,6 +63,14 @@ fn cstring(s: &str) -> Result<CString, String> {
 impl Player {
     /// mpv を作って初期化する。`options` は mpv_initialize 前に設定するオプション
     pub fn new(options: &[(&str, &str)]) -> Result<Arc<Player>, String> {
+        Self::with_optional(options, &[])
+    }
+
+    /// `optional` は mpv のバージョンによっては存在しないオプション（失敗しても続ける）
+    pub fn with_optional(
+        options: &[(&str, &str)],
+        optional: &[(&str, &str)],
+    ) -> Result<Arc<Player>, String> {
         let api = ffi::api()?;
 
         // libmpv は数値の書式に LC_NUMERIC="C" を要求する
@@ -84,6 +92,10 @@ impl Player {
                     error_string(api, code)
                 ));
             }
+        }
+        for (name, value) in optional {
+            let (n, v) = (cstring(name)?, cstring(value)?);
+            unsafe { (api.set_option_string)(handle, n.as_ptr(), v.as_ptr()) };
         }
         let code = unsafe { (api.initialize)(handle) };
         if code < 0 {
