@@ -1,9 +1,8 @@
 name: CI
 
+# 非公開リポジトリでは macOS ランナーの利用時間が有料枠を消費するので、手動実行だけにしている
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   # macOS 専用アプリなので、Linux ランナーでは tauri のシステム依存が揃わない。

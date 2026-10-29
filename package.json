@@ -1,5 +1,5 @@
 {
-  "author": "piro <piro.haniwa@gmail.com> (https://kkweb.io/)",
+  "author": "Steve2412 (fork de Mac Classic Player por piro <piro.haniwa@gmail.com>)",
   "bugs": {
     "url": "https://github.com/Steve2412/mac-classic-player-strop/issues"
   },
@@ -21,7 +21,7 @@
     "ress": "5.0.2",
     "use-local-storage-state": "19.5.0"
   },
-  "description": "",
+  "description": "Reproductor de video y audio para macOS con motor mpv: MKV, pistas de audio y subtítulos, control de velocidad.",
   "devDependencies": {
     "@commitlint/cli": "20.5.3",
     "@commitlint/config-conventional": "20.5.3",
@@ -89,7 +89,6 @@
     "build:frontend": "vite build",
     "dev": "tauri dev",
     "dev:frontend": "vite",
-    "dev:lp": "npm --prefix lp run dev",
     "generate-icon": "npx tauri icon assets/icon.png",
     "lint": "npx eslint",
     "lint:fix": "npx eslint --fix",
@@ -100,5 +99,6 @@
     "release:upload": "gh release upload v$npm_package_version \"src-tauri/target/release/bundle/dmg/Mac Classic Player_${npm_package_version}_aarch64.dmg\" --clobber",
     "type-check": "tsc --noEmit"
   },
-  "version": "0.4.0"
+  "version": "0.5.0",
+  "homepage": "https://github.com/Steve2412/mac-classic-player-strop"
 }

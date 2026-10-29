@@ -30,7 +30,6 @@ const eslintConfig = [
     ignores: [
       "dist/**",
       "docs/**",
-      "lp/**",
       "src-tauri/**",
       "*.config.{js,mjs,ts}",
     ],
